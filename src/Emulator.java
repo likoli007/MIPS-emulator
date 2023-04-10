@@ -39,100 +39,104 @@ public class Emulator {
 	int[] REG = new int[32];
 	int PC;
 	int IR;
-	
+
+	int variableIndex;
+
 	int hi, lo;
-	
+
 	String input;
-	
+
 	static enum Registers  {
 		ZERO(0),AT(1),V0(2),V1(3),A0(4),A1(5),A2(6),A3(7),
 		T0(8),T1(9),T2(10),T3(11),T4(12),T5(13),T6(14),T7(15),
 		S0(16),S1(17),S2(18),S3(19),S4(20),S5(21),S6(22),S7(23),
 		T8(24),T9(25),K0(26),K1(27),GP(28),SP(29),FP(30),RA(31);
-		
+
 		private int value;
-	
+
 		Registers(int val){
 			this.value = val;
 		}
-		
+
 		public String getName() {
 			return "$" + this.name();
 		}
-		
+
 		public int getVal() {
 			return this.value;
 		}
-		
+
 	};
-	
-	
+
+
 	public Emulator(int memsize) {
 		memory = new byte[memsize];
-		
+
+		//TODO actual indexing
+		variableIndex = 1000;
+		//variableIndex= (memsize / 4) * 3;
+
 		PC = 0;
 	}
-	
+
 	private String getRegister(int reg){
         for(Registers r : Registers.values()){
             if(r.value == reg) return "$" + r.name();
         }
         return "ERRORREGISTER";
     }
-	
+
 	public String outputData() {
 		String result = "";
-		
+
 		for (int i = 0; i < memory.length; i++) {
 			result = result + String.format("%02X", memory[i]) + " ";
 			if ((i+1) % 16 == 0 && i != 0) {
 				result += "\n";
 			}
 		}
-		
+
 		return result;
 	}
-	
+
 	public String outputRegisters() {
 		String result = "";
-		
+
 		for(int i = 0; i < 32; i++) {
 			result = result +  getRegister(i) + ":" + String.format("%08X", REG[i])+"    ";
-			
-			
+
+
 			if ((i+1) % 4 == 0 && i != 0) {
 				result = result + "\n";
 			}
-			
+
 		}
 		result += "$HI:" + String.format("%08X", hi) + "    " + "$LO:" + String.format("%08X", lo);
-		
+
 		return result;
 	}
-	
+
 	private int convertBytesToInt(int addr) {
         return ((memory[addr] & 0xFF) << 24) |
                 ((memory[addr+1] & 0xFF) << 16) |
                 ((memory[addr+2] & 0xFF) << 8) |
                 ((memory[addr+3] & 0xFF));
     }
-	
+
 	public void step() {
-		IR = convertBytesToInt(PC); 
+		IR = convertBytesToInt(PC);
 		PC += 4;
-		
+
 		execute();
-		
+
 	}
 
 	private void execute() {
 		if ((IR & 0xFC000000) == 0) {
 			executeRType();
-		}
-		else if((IR & 0x08000000) != 0) {
+		} else if((IR & 0x08000000) != 0) {
 			executeJType();
-		}
-		else {
+		} else {
 			executeIType();
 		}
 	}
@@ -141,147 +145,144 @@ public class Emulator {
 		int rs = (IR >> 21) & 0x1f;
 		int rt = (IR >> 16) & 0x1f;
 		int imm = (IR & 0xFFFF);
-		
 
-		
+
 		switch(IR >>> 26) {
-		case 8:
-			//addi
-			//rt = rs + imm
-			REG[rt] = REG[rs] + imm; 
-			break;
-		case 9:
-			//addiu
-			//rt = rs + imm (unsigned)
-			REG[rt] = Integer.valueOf(Integer.toUnsignedString(REG[rs] + imm));
-			break;
-		case 12:
-			//andi
-			//rt = rs & imm
-			REG[rt] = REG[rs] & imm;
-			break;
-		case 4:
-			//beq
-			//if rs == rt, goto pc + imm
-			if(REG[rs] == REG[rt]) {
-				PC += imm * 4;
-			} 
-			break;
-		case 1: 
-			//bgez or bltz
-			//if rs bgez or bltz 0, goto pc + imm
-			if(((IR >> 16) & 0x1f) == 1) {
-				if(REG[rs] >= 0) {
+			case 8:
+				//addi
+				//rt = rs + imm
+				REG[rt] = REG[rs] + imm;
+				break;
+			case 9:
+				//addiu
+				//rt = rs + imm (unsigned)
+				REG[rt] = Integer.valueOf(Integer.toUnsignedString(REG[rs] + imm));
+				break;
+			case 12:
+				//andi
+				//rt = rs & imm
+				REG[rt] = REG[rs] & imm;
+				break;
+			case 4:
+				//beq
+				//if rs == rt, goto pc + imm
+				if(REG[rs] == REG[rt]) {
 					PC += imm * 4;
 				}
-			}
-			else {
-				if(REG[rs] < 0) {
+				break;
+			case 1:
+				//bgez or bltz
+				//if rs bgez or bltz 0, goto pc + imm
+				if(((IR >> 16) & 0x1f) == 1) {
+					if(REG[rs] >= 0) {
+						PC += imm * 4;
+					}
+				} else {
+					if(REG[rs] < 0) {
+						PC += imm * 4;
+					}
+				}
+				break;
+			case 7:
+				//bgtz
+				//if rs > 0, goto pc + imm
+				if(REG[rs] > 0) {
 					PC += imm * 4;
 				}
-			}
-			break;
-		case 7:
-			//bgtz
-			//if rs > 0, goto pc + imm
-			if(REG[rs] > 0) {
-				PC += imm * 4;
-			}
-			break;
-		case 6:
-			//blez
-			//if rs <= 0 goto pc +imm
-			if(REG[rs] <= 0) {
-				PC += imm * 4;
-			}
-			break;
-		case 5:
-			//bne
-			//if rs != rt goto pc + imm
-			if(REG[rs] != REG[rt]) {
-				PC += imm * 4;
-			}
-			break;
-		case 32:
-			//lb
-			//rt = Memory[rs + imm]
-			REG[rt] = memory[REG[rs]+imm];
-			break;
-		case 36:
-			//lbu
-			//rt = memory[rs + imm]
-			REG[rt] = memory[REG[rs]+imm] & 0xff;
-			break;
-		case 33:
-			//lh
-			//return "LH " + rt + " " + imm + "(" + rs + ")"; 
-			break;
-		case 37:
-			//lhu
-			//return "LHU " + rt + " " + imm + "(" + rs + ")"; 
-			break;
-		case 15:
-			//lui
-			//rt's top 16 bits = imm
-			REG[rt] = REG[rt] | (imm << 16);
-			break;
-		case 35:
-			//lw
-			//rt = Memory[rs + imm] 
-			REG[rt] = convertBytesToInt(REG[rs]+imm);
-			break;
-		case 49:
-			//lwc1
-			//return "LWC1 " + rt + " " + imm + "(" + rs + ")"; 
-			break;
-		case 13:
-			//ori
-			//rt = rs | imm
-			REG[rt] = REG[rs] | imm; 
-			break;
-		case 40:
-			//sb
-			//memory[imm+rs] = rt
-			memory[imm + REG[rs]] = (byte)(REG[rt] & 0xff);
-			break;
-		case 10:
-			//slti
-			//if rs < imm rt == 1 otherwise 0
-			if(REG[rs] < (short)imm) {
-				REG[rt] = 1;
-			}
-			else {
-				REG[rt] = 0;
-			} 
-			break;
-		case 11:
-			//sltiu
-			//if rs < imm rt == 1 otherwise 0 unsigned
-			if (Integer.valueOf(Integer.toUnsignedString(Integer.valueOf(REG[rs]))) < (imm & 0xffff)) {
-				
-			}
-			break;
-		case 41:
-			//lh
-			//return "LH " + rt + " " + imm + "(" + rs + ")"; 
-			break;
-		case 43:
-			//sw
-			//memory[rs+imm] = rt
-			memory[REG[rs]+imm] = (byte)((REG[rt] & 0xFF000000) >>> 24);
-			memory[REG[rs]+imm+1] = (byte)((REG[rt] & 0x00FF0000) >>> 16);
-			memory[REG[rs]+imm+2] = (byte)((REG[rt] & 0x0000FF00) >>> 8);
-			memory[REG[rs]+imm+3] = (byte)((REG[rt] & 0x000000FF));
-			break;
-		case 59:
-			//swc1
-			//return "SWC1 " + rt + " " + imm + "(" + rs + ")"; 
-			break;
-		case 14:
-			//xori
-			//rt = rs xor imm
-			REG[rt] = REG[rs] ^ imm; 
-			break;
+				break;
+			case 6:
+				//blez
+				//if rs <= 0 goto pc +imm
+				if(REG[rs] <= 0) {
+					PC += imm * 4;
+				}
+				break;
+			case 5:
+				//bne
+				//if rs != rt goto pc + imm
+				if(REG[rs] != REG[rt]) {
+					PC += imm * 4;
+				}
+				break;
+			case 32:
+				//lb
+				//rt = Memory[rs + imm]
+				REG[rt] = memory[REG[rs]+imm];
+				break;
+			case 36:
+				//lbu
+				//rt = memory[rs + imm]
+				REG[rt] = memory[REG[rs]+imm] & 0xff;
+				break;
+			case 33:
+				//lh
+				//return "LH " + rt + " " + imm + "(" + rs + ")";
+				break;
+			case 37:
+				//lhu
+				//return "LHU " + rt + " " + imm + "(" + rs + ")";
+				break;
+			case 15:
+				//lui
+				//rt's top 16 bits = imm
+				REG[rt] = REG[rt] | (imm << 16);
+				break;
+			case 35:
+				//lw
+				//rt = Memory[rs + imm]
+				REG[rt] = convertBytesToInt(REG[rs]+imm);
+				break;
+			case 49:
+				//lwc1
+				//return "LWC1 " + rt + " " + imm + "(" + rs + ")";
+				break;
+			case 13:
+				//ori
+				//rt = rs | imm
+				REG[rt] = REG[rs] | imm;
+				break;
+			case 40:
+				//sb
+				//memory[imm+rs] = rt
+				memory[imm + REG[rs]] = (byte)(REG[rt] & 0xff);
+				break;
+			case 10:
+				//slti
+				//if rs < imm rt == 1 otherwise 0
+				if(REG[rs] < (short)imm) {
+					REG[rt] = 1;
+				} else {
+					REG[rt] = 0;
+				}
+				break;
+			case 11:
+				//sltiu
+				//if rs < imm rt == 1 otherwise 0 unsigned
+				if (Integer.valueOf(Integer.toUnsignedString(Integer.valueOf(REG[rs]))) < (imm & 0xffff)) {
+
+				}
+				break;
+			case 41:
+				//lh
+				//return "LH " + rt + " " + imm + "(" + rs + ")";
+				break;
+			case 43:
+				//sw
+				//memory[rs+imm] = rt
+				memory[REG[rs]+imm] = (byte)((REG[rt] & 0xFF000000) >>> 24);
+				memory[REG[rs]+imm+1] = (byte)((REG[rt] & 0x00FF0000) >>> 16);
+				memory[REG[rs]+imm+2] = (byte)((REG[rt] & 0x0000FF00) >>> 8);
+				memory[REG[rs]+imm+3] = (byte)((REG[rt] & 0x000000FF));
+				break;
+			case 59:
+				//swc1
+				//return "SWC1 " + rt + " " + imm + "(" + rs + ")";
+				break;
+			case 14:
+				//xori
+				//rt = rs xor imm
+				REG[rt] = REG[rs] ^ imm;
+				break;
 		}
 
 		if(REG[0] != 0) {
@@ -291,18 +292,20 @@ public class Emulator {
 
 	private void executeJType() {
 		int imm = IR & 0x3FFFFFF;
-		
+
 		switch((IR & 0x0C000000) >> 26) {
-		case 2:
-			//j
-			//new address = high 4 of pc, imm, two 0 bits
-			PC = (PC & 0xF0000000) | (imm << 2);
-		case 3:
-			//jal
-			REG[31] = PC;
-			PC = (PC & 0xF0000000) | (imm << 2);
+			case 2:
+				//j
+				//new address = high 4 of pc, imm, two 0 bits
+				PC = (PC & 0xF0000000) | (imm << 2);
+				break;
+			case 3:
+				//jal
+				REG[31] = PC;
+				PC = (PC & 0xF0000000) | (imm << 2);
+				break;
 		}
-		
+
 	}
 
 	private void executeRType() {
@@ -311,171 +314,180 @@ public class Emulator {
 		int rd = (IR >> 11) & 0x1f;
 		int shamt = (IR >> 6) & 0x1f;
 		int func = (IR & 0x3F);
-		
+
 		switch(func) {
-		case 32:
-			//ADD
-			//rd = rs + rt
-			REG[rd] = REG[rs] + REG[rt]; 
-			break;
-		case 33:
-			//ADDU
-			//rd = rs + rt (unsigned)
-			REG[rd] = Integer.valueOf(Integer.toUnsignedString((REG[rs] + REG[rt]))); 
-			break;
-		case 36:
-			//AND
-			//rd = rs & rt
-			REG[rd] = REG[rs] & REG[rt]; 
-			break;
-		case 26:
-			//DIV
-			//hi, lo = rs / rt, rs % rt
-			hi = (int)Math.floor(REG[rs] / REG[rt]);
-			lo = REG[rs] % REG[rt];
-			break;
-		case 27:
-			//DIVU
-			//hi, lo = rs / rt, rs % rt (unsigned)
-			hi = Integer.valueOf(Integer.toUnsignedString((int)Math.floor(REG[rs] / REG[rt])));
-			lo = Integer.valueOf(Integer.toUnsignedString(REG[rs] % REG[rt]));
-			break;
-		case 9:
-			//JALR
-			//rd = pc + 4  (i add to pc in step already)
-			//pc = rs
-			REG[rd] = PC;
-			PC = REG[rs];
-			break;
-		case 8:
-			//JR
-			// pc = rs
-			PC = REG[rs];
-			break;
-		case 16:
-			//mfhi
-			//rd = hi
-			REG[rd] = hi;
-			break;
-		case 18:
-			//mflo
-			//rd = lo
-			REG[rd] = lo;
-			break;
-		case 17:
-			//mthi
-			//hi = rs
-			hi = REG[rs];
-			break;
-		case 19:
-			//mtlo
-			//lo = rs
-			lo = REG[rs];
-			break;
-		case 24:
-			//mult
-			//hi = top 32 of rs*rt
-			//lo = bot 32 of rs*rt
-			hi = (int)(((long)REG[rs] * (long)REG[rt]) >> 32);
-			lo = (int)(((long)REG[rs] * (long)REG[rt]) & 0xFFFFFFFF);
-			break;
-		case 25:
-			//multu
-			//hi = top 32 of rs*rt unsigned
-			//lo = bot 32 of rs*rt unsigned
-			hi = Integer.valueOf(Integer.toUnsignedString((int)(((long)REG[rs] * (long)REG[rt]) >> 32)));
-			lo = Integer.valueOf(Integer.toUnsignedString((int)(((long)REG[rs] * (long)REG[rt]) & 0xFFFFFFFF)));
-			break;
-		case 39:
-			//nor
-			//rd = !(rs || rt)
-			REG[rd] = ~(REG[rs] | REG[rt]);
-			break;
-		case 37:
-			//or
-			//rd = rs | rt
-			REG[rd] = REG[rs] | REG[rt];
-			break;
-		case 0:
-			//sll
-			//rd = rt << shamt
-			REG[rd] = REG[rt] << shamt;
-			break;
-		case 4:
-			//sllv
-			//rd = rt << rs
-			REG[rd] = REG[rt] << REG[rs];
-			break;
-		case 42:
-			//slt
-			//If $s is less than $t, $d is set to one. It gets zero otherwise.
-			REG[rd] = REG[rs] < REG[rt] ? 1 : 0;
-			break;
-		case 43:
-			//sltu
-			//If $s is less than $t, $d is set to one. It gets zero otherwise.unsigned
-			REG[rd] = Integer.compareUnsigned(REG[rs], REG[rt]) < 0 ? 1 : 0;
-			break;
-		case 3:
-			//sra
-			//rd = rt >> shamt
-			REG[rd] = rt >> shamt;
-			break;
-		case 7:
-			//srav
-			//rd = rt >> rs
-			REG[rd] = REG[rt] >> REG[rs];
-			break;
-		case 2:
-			//srl
-			//rd = rt >> shamt logical
-			REG[rd] = rt >>> shamt;
-			break;
-		case 6:
-			//srlv
-			//rd = rt >> rs logical
-			REG[rd] = REG[rt] >>> REG[rs];
-			break;
-		case 34:
-			//sub
-			//rd = rs - rt
-			REG[rd] = REG[rs] - REG[rt];
-			break;
-		case 35:
-			REG[rd] = Integer.valueOf(Integer.toUnsignedString(REG[rs] - REG[rt]));
-			break;
-		case 12:
-			//SYSCALL
-			//todo, SYSCALLS
-			break;
-		case 38:
-			//xor
-			//rd = rs xor rt
-			REG[rd] = REG[rs] ^ REG[rt];
-			break;
-		case 13:
-			//break
-			//unsure what to do with this instruction
-			break;
-		
-			
-		
+			case 32:
+				//ADD
+				//rd = rs + rt
+				REG[rd] = REG[rs] + REG[rt];
+				break;
+			case 33:
+				//ADDU
+				//rd = rs + rt (unsigned)
+				REG[rd] = Integer.valueOf(Integer.toUnsignedString((REG[rs] + REG[rt])));
+				break;
+			case 36:
+				//AND
+				//rd = rs & rt
+				REG[rd] = REG[rs] & REG[rt];
+				break;
+			case 26:
+				//DIV
+				//hi, lo = rs / rt, rs % rt
+				hi = (int)Math.floor(REG[rs] / REG[rt]);
+				lo = REG[rs] % REG[rt];
+				break;
+			case 27:
+				//DIVU
+				//hi, lo = rs / rt, rs % rt (unsigned)
+				hi = Integer.valueOf(Integer.toUnsignedString((int)Math.floor(REG[rs] / REG[rt])));
+				lo = Integer.valueOf(Integer.toUnsignedString(REG[rs] % REG[rt]));
+				break;
+			case 9:
+				//JALR
+				//rd = pc + 4  (i add to pc in step already)
+				//pc = rs
+				REG[rd] = PC;
+				PC = REG[rs];
+				break;
+			case 8:
+				//JR
+				// pc = rs
+				PC = REG[rs];
+				break;
+			case 16:
+				//mfhi
+				//rd = hi
+				REG[rd] = hi;
+				break;
+			case 18:
+				//mflo
+				//rd = lo
+				REG[rd] = lo;
+				break;
+			case 17:
+				//mthi
+				//hi = rs
+				hi = REG[rs];
+				break;
+			case 19:
+				//mtlo
+				//lo = rs
+				lo = REG[rs];
+				break;
+			case 24:
+				//mult
+				//hi = top 32 of rs*rt
+				//lo = bot 32 of rs*rt
+				hi = (int)(((long)REG[rs] * (long)REG[rt]) >> 32);
+				lo = (int)(((long)REG[rs] * (long)REG[rt]) & 0xFFFFFFFF);
+				break;
+			case 25:
+				//multu
+				//hi = top 32 of rs*rt unsigned
+				//lo = bot 32 of rs*rt unsigned
+				hi = Integer.valueOf(Integer.toUnsignedString((int)(((long)REG[rs] * (long)REG[rt]) >> 32)));
+				lo = Integer.valueOf(Integer.toUnsignedString((int)(((long)REG[rs] * (long)REG[rt]) & 0xFFFFFFFF)));
+				break;
+			case 39:
+				//nor
+				//rd = !(rs || rt)
+				REG[rd] = ~(REG[rs] | REG[rt]);
+				break;
+			case 37:
+				//or
+				//rd = rs | rt
+				REG[rd] = REG[rs] | REG[rt];
+				break;
+			case 0:
+				//sll
+				//rd = rt << shamt
+				REG[rd] = REG[rt] << shamt;
+				break;
+			case 4:
+				//sllv
+				//rd = rt << rs
+				REG[rd] = REG[rt] << REG[rs];
+				break;
+			case 42:
+				//slt
+				//If $s is less than $t, $d is set to one. It gets zero otherwise.
+				REG[rd] = REG[rs] < REG[rt] ? 1 : 0;
+				break;
+			case 43:
+				//sltu
+				//If $s is less than $t, $d is set to one. It gets zero otherwise.unsigned
+				REG[rd] = Integer.compareUnsigned(REG[rs], REG[rt]) < 0 ? 1 : 0;
+				break;
+			case 3:
+				//sra
+				//rd = rt >> shamt
+				REG[rd] = rt >> shamt;
+				break;
+			case 7:
+				//srav
+				//rd = rt >> rs
+				REG[rd] = REG[rt] >> REG[rs];
+				break;
+			case 2:
+				//srl
+				//rd = rt >> shamt logical
+				REG[rd] = rt >>> shamt;
+				break;
+			case 6:
+				//srlv
+				//rd = rt >> rs logical
+				REG[rd] = REG[rt] >>> REG[rs];
+				break;
+			case 34:
+				//sub
+				//rd = rs - rt
+				REG[rd] = REG[rs] - REG[rt];
+				break;
+			case 35:
+				REG[rd] = Integer.valueOf(Integer.toUnsignedString(REG[rs] - REG[rt]));
+				break;
+			case 12:
+				//SYSCALL
+				//todo, SYSCALLS
+				break;
+			case 38:
+				//xor
+				//rd = rs xor rt
+				REG[rd] = REG[rs] ^ REG[rt];
+				break;
+			case 13:
+				//break
+				//unsure what to do with this instruction
+				break;
+
+
 		}
 		if(REG[0] != 0) {
 			REG[0] = 0;
 		}
 	}
 
-	public void loadProgram(ArrayList<Integer> machineCodeBufferArray) {
+	public void loadProgram(ArrayList<Integer> machineCodeBufferArray, ArrayList<Byte> dataBufferArray) {
 		int instruction;
 		String translation;
 		input = "";
-		
+		int index = variableIndex;
+		byte content;
+
 		for(int i = 0; i < machineCodeBufferArray.size(); i++) {
 			instruction = machineCodeBufferArray.get(i);
 			writeToMemory(instruction);
-		}	
-		PC = 0;
+		}
+
+		for(int i=0; i< dataBufferArray.size(); i++){
+			//System.out.println(dataBufferArray.get(index));
+			content = dataBufferArray.get(i);
+			memory[index] = content;
+			index++;
+		}
+
+			PC = 0;
 	}
 
 	private void writeToMemory(int instruction) {
@@ -490,13 +502,13 @@ public class Emulator {
 		String result = "";
 		int instruction;
 		String translation;
-		
+
 		for(int i = 0; i < memory.length; i+=4) {
 			instruction = convertBytesToInt(i);
 			translation = Assembler.deassembleInstruction(instruction);
-			
+
 			result = result + String.format("%08X", instruction) + " | " + translation + (i == PC ? "    <---\n" : "\n");
- 		}
+		}
 		return result;
 	}
 }

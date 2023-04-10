@@ -9,11 +9,9 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Scanner;
 
 import javax.swing.*;
-import javax.swing.event.*;
 import javax.swing.text.DefaultCaret;
 
 
@@ -21,58 +19,59 @@ import javax.swing.text.DefaultCaret;
 
 
 public class Application extends JFrame implements ActionListener{
-	static final String assemblyRules = 
-					  "           _           \r\n"
-					+ "          (_)          \r\n"
-					+ " _ __ ___  _ _ __  ___ \r\n"
-					+ "| '_ ` _ \\| | '_ \\/ __|\r\n"
-					+ "| | | | | | | |_) \\__ \\\r\n"
-					+ "|_| |_| |_|_| .__/|___/\r\n"
-					+ "            | |        \r\n"
-					+ "            |_|      \r\n "
-					+"PLEASE WRITE EACH INSTRUCTION ON A NEW LINE\n"
-					+"THIS ASSEMBLER SUPPORTS BOTH UPPER AND LOWER CASE\n"
-					+"THIS ASSEMBLER DOES NOT SUPPORT COMMAS (,) PLEASE USE SPACES\n"
-					+"ALSO DO NOT USE UNNECESSARY SPACES OR THE ASSEMBLER MAY BRAKE\n"
-					+"    lb $s0 123 ($t1) WILL LEAD TO A CRASH!!!\n"
-					+"EXAMPLE OF ALLOWED REGISTER WRITING FORMS:\n"
-					+"    s0, S0, $s0, $S0, $16, 16\n"
-					+"THIS ASSEMBLER SUPPORTS COMMENTS\n"
-					+"THIS ASSEMBLER SUPPORTS HEX, BUT EACH HEX NUMBER NEEDS TO BE PRECEDED BY '0x'\n"
-					+"THIS ASSEMBLER SUPPORTS ONLINE EXPRESSION EVALUATION, BUT ONLY FOR DECIMALS!\n"
-					+"    lb s0 12*4(T0) IS OK!\n"
-					+"    lb s0 0x12*4(T0) IS NOT OK!\n"
-					+"LABELS CAN BE CHAINED BUT NEED SPACES BETWEEN, EXAMPLE:\n"
-					+"	 LABEL1: label2:\n"
+	static final String assemblyRules =
+			"""
+					           _           \r
+					          (_)          \r
+					 _ __ ___  _ _ __  ___ \r
+					| '_ ` _ \\| | '_ \\/ __|\r
+					| | | | | | | |_) \\__ \\\r
+					|_| |_| |_|_| .__/|___/\r
+					            | |        \r
+					            |_|      \r
+					 PLEASE WRITE EACH INSTRUCTION ON A NEW LINE
+					THIS ASSEMBLER SUPPORTS BOTH UPPER AND LOWER CASE
+					THIS ASSEMBLER DOES NOT SUPPORT COMMAS (,) PLEASE USE SPACES
+					ALSO DO NOT USE UNNECESSARY SPACES OR THE ASSEMBLER MAY BRAKE
+					    lb $s0 123 ($t1) WILL LEAD TO A CRASH!!!
+					EXAMPLE OF ALLOWED REGISTER WRITING FORMS:
+					    s0, S0, $s0, $S0, $16, 16
+					THIS ASSEMBLER SUPPORTS COMMENTS
+					THIS ASSEMBLER SUPPORTS HEX, BUT EACH HEX NUMBER NEEDS TO BE PRECEDED BY '0x'
+					THIS ASSEMBLER SUPPORTS ONLINE EXPRESSION EVALUATION, BUT ONLY FOR DECIMALS!
+					    lb s0 12*4(T0) IS OK!
+					    lb s0 0x12*4(T0) IS NOT OK!
+					LABELS CAN BE CHAINED BUT NEED SPACES BETWEEN, EXAMPLE:
+						 LABEL1: label2:
+					"""
 					;
 			
-	static final String deassemblyRules = 
-			  "           _           \r\n"
-			+ "          (_)          \r\n"
-			+ " _ __ ___  _ _ __  ___ \r\n"
-			+ "| '_ ` _ \\| | '_ \\/ __|\r\n"
-			+ "| | | | | | | |_) \\__ \\\r\n"
-			+ "|_| |_| |_|_| .__/|___/\r\n"
-			+ "            | |        \r\n"
-			+ "            |_|       \r\n"
-			+"---------------------MANUAL INPUT MENU---------------------\n"
-			+"PLEASE INPUT THE NUMBER IN HEXADECIMAL(NEEDS TO HAVE 0x) OR DECIMAL\n"
-			+"EXAMPLE:\n"
-			+"    0x014B4820\n"
-			+"    12345678\n"	
-			+"----------------------FILE INPUT MENU----------------------"
-			+"FILE SHOULD BE A BYTE FILE, THIS PROGRAM WILL READ 4 BYTES!"
-			+"PLEASE MAKE CHANGES TO YOUR FILE ACCORDING TO THESE RULES!";
+	static final String deassemblyRules =
+			"""
+					           _           \r
+					          (_)          \r
+					 _ __ ___  _ _ __  ___ \r
+					| '_ ` _ \\| | '_ \\/ __|\r
+					| | | | | | | |_) \\__ \\\r
+					|_| |_| |_|_| .__/|___/\r
+					            | |        \r
+					            |_|       \r
+					---------------------MANUAL INPUT MENU---------------------
+					PLEASE INPUT THE NUMBER IN HEXADECIMAL(NEEDS TO HAVE 0x) OR DECIMAL
+					EXAMPLE:
+					    0x014B4820
+					    12345678
+					----------------------FILE INPUT MENU----------------------FILE SHOULD BE A BYTE FILE, THIS PROGRAM WILL READ 4 BYTES!PLEASE MAKE CHANGES TO YOUR FILE ACCORDING TO THESE RULES!""";
 	
 	
 	JPanel menuPanel, optionPanel, bigMenuPanel, bigIOPanel;
 	JTextArea inputArea, outputArea;
 	
-	JRadioButton assemblyButton, deassemblyButton, emulatorButton;
+	JRadioButton assemblyButton, disassemblyButton, emulatorButton;
 	ButtonGroup modeButtonGroup;
 	JScrollPane scrollPane1, scrollPane2;
 	JButton saveInputButton, saveOutputButton,loadButton, runButton;
-	JButton registerButton, dataModeButton, commandModeButton, stepButton;
+	JButton registerButton, dataModeButton, stepButton;
 	JButton ruleButton, asmButton;
 	
 	JLabel topLabel;
@@ -93,27 +92,27 @@ public class Application extends JFrame implements ActionListener{
 		inputArea = new JTextArea(10, 50);
 		scrollPane1 = new JScrollPane(inputArea); 
 		inputArea.setEditable(true);
-		//scrollPane1.add(inputArea);
+
 		DefaultCaret caret = (DefaultCaret)inputArea.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.NEVER_UPDATE);
 		
 		outputArea = new JTextArea(10, 50);
 		scrollPane2 = new JScrollPane(outputArea); 
 		outputArea.setEditable(false);
-		//scrollPane2.add(outputArea);
+
 		
 		
 		
 	
 		assemblyButton = new JRadioButton("汇编模模式");
 		assemblyButton.setActionCommand("ASM");
-		deassemblyButton = new JRadioButton("反汇编模式");
-		deassemblyButton.setActionCommand("DSM");
+		disassemblyButton = new JRadioButton("反汇编模式");
+		disassemblyButton.setActionCommand("DSM");
 		//emulatorButton = new JRadioButton("模拟器模�?");
 		//emulatorButton.setActionCommand("EMU");
 		
 		assemblyButton.addActionListener(this);
-		deassemblyButton.addActionListener(this);
+		disassemblyButton.addActionListener(this);
 		//emulatorButton.addActionListener(this);
 		
 		
@@ -190,7 +189,7 @@ public class Application extends JFrame implements ActionListener{
 		modeButtonGroup = new ButtonGroup();
 		
 		modeButtonGroup.add(assemblyButton);
-		modeButtonGroup.add(deassemblyButton);
+		modeButtonGroup.add(disassemblyButton);
 		//modeButtonGroup.add(emulatorButton);
 		assemblyButton.setSelected(true);
 		
@@ -198,7 +197,7 @@ public class Application extends JFrame implements ActionListener{
 		
 		//menuPanel.setLayout(new BoxLayout(menuPanel, ));
 		menuPanel.add(assemblyButton);
-		menuPanel.add(deassemblyButton);
+		menuPanel.add(disassemblyButton);
 		//menuPanel.add(emulatorButton);
 		
 		
@@ -231,7 +230,7 @@ public class Application extends JFrame implements ActionListener{
 			clearOptions();
 			startAssembly();
 		}
-		if(e.getSource() == deassemblyButton) {
+		if(e.getSource() == disassemblyButton) {
 			clearOptions();
 			startDeassembly();
 		}
@@ -273,7 +272,7 @@ public class Application extends JFrame implements ActionListener{
 				showResults();
 				emulator = new Emulator(MEMSIZE);
 				topLabel.setText((modeButtonGroup.getSelection().getActionCommand().equals("ASM") ? "汇编" :"反汇编") + "成功！");
-				emulator.loadProgram(assembler.getMachineCodeBufferArray());
+				emulator.loadProgram(assembler.getMachineCodeBufferArray(), assembler.getDataBufferArray());
 				inputArea.setText(emulator.printState());
 				
 						

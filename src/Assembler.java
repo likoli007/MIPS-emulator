@@ -33,7 +33,11 @@ public class Assembler {
 			"SH", "SW", "SWC1",	"XORI"};
 	static String[] J_types = {
 			"J", "JAL"};
-	
+
+	public ArrayList<Byte> getDataBufferArray() {
+		return DataBuffer;
+	}
+
 	static enum Registers  {
 		ZERO(0),AT(1),V0(2),V1(3),A0(4),A1(5),A2(6),A3(7),
 		T0(8),T1(9),T2(10),T3(11),T4(12),T5(13),T6(14),T7(15),
@@ -185,30 +189,48 @@ public class Assembler {
 		
 		for(int i = 0; i < InstructionBuffer.size(); i++){
 			line = InstructionBuffer.get(i);
-			line = line.toUpperCase();
-			line = line.replace("$", "");
+
 			
 			
-			if(line.contains(".data")==true){
+			if(line.contains(".data")){
 				int j;
-				String varName, varType, content;
-				
-				for( j = i+1; j < InstructionBuffer.size(); j++) {
+				String varName, varType, varContent;
+				InstructionBuffer.remove(i);
+				for( j = i; j < InstructionBuffer.size();) {
 					line = InstructionBuffer.get(j);
-					if(line.contains(".text") == true) {
+					//System.out.println(line);
+					InstructionBuffer.remove(j);
+					if(line.contains(".text")) {
 						break;
 					}
 					lineList = line.split(" ");
-					
-					
-					
+					varName = lineList[0];
+					varType = lineList[1];
+					varContent = lineList[2];
+
+					System.out.println(varType);
+					if(varType.equals(".2byte")){
+						DataBuffer.add((byte)(short)Integer.parseInt(varContent));
+					}
+					else if(varType.equals(".4byte")){
+						DataBuffer.add((byte)Integer.parseInt(varContent));
+					}
+					else if(varType.equals(".ascii")){
+						varContent = varContent.substring(1,varContent.length()-1);
+						for(int k = 0; k < varContent.length(); k++){
+							DataBuffer.add((byte)varContent.charAt(k));
+							System.out.println("added "+ DataBuffer.get(k));
+						}
+					}
+
 				}
 				
-				i = j;
+				i = j-1;
 				continue;
 			}
-			
-			
+
+			line = line.toUpperCase();
+			line = line.replace("$", "");
 			lineList = line.split(" ");
 			
 			for(int j = 0; j < lineList.length; j++) {
@@ -269,6 +291,7 @@ public class Assembler {
 		
 		for(int i = 0; i < InstructionBuffer.size(); i++) {
 			line = InstructionBuffer.get(i);
+			//System.out.println(line);
 			lineList = line.split(" ");
 			
 			if (Arrays.stream(R_types).anyMatch(lineList[0]::equals)) {
